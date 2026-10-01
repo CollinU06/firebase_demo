@@ -10,8 +10,6 @@ import 'package:flutter/material.dart';
 import 'firebase_options.dart';
 import 'guest_book_message.dart';                        // new
 
-enum Attending { yes, no, unknown }
-
 class ApplicationState extends ChangeNotifier {
   ApplicationState() {
     init();
@@ -33,18 +31,17 @@ class ApplicationState extends ChangeNotifier {
   int _attendees = 0;
   int get attendees => _attendees;
 
-  Attending _attending = Attending.unknown;
+  // How many people *I* said are coming (starts at 0)
+  int _attending = 0;
   StreamSubscription<DocumentSnapshot>? _attendingSubscription;
-  Attending get attending => _attending;
-  set attending(Attending attending) {
+  int get attending => _attending;
+
+  // Save my number to Firestore
+  set attending(int count) {
     final userDoc = FirebaseFirestore.instance
         .collection('attendees')
         .doc(FirebaseAuth.instance.currentUser!.uid);
-    if (attending == Attending.yes) {
-      userDoc.set(<String, dynamic>{'attending': true});
-    } else {
-      userDoc.set(<String, dynamic>{'attending': false});
-    }
+    userDoc.set(<String, dynamic>{'attending': count});
   }
 
   Future<void> init() async {
@@ -55,16 +52,22 @@ class ApplicationState extends ChangeNotifier {
       EmailAuthProvider(),
     ]);
 
-    // Add from here...
+    // Add up everyone's numbers to get the total
     FirebaseFirestore.instance
         .collection('attendees')
-        .where('attending', isEqualTo: true)
         .snapshots()
         .listen((snapshot) {
-      _attendees = snapshot.docs.length;
+      int total = 0;
+      for (final document in snapshot.docs) {
+        final value = document.data()['attending'];
+        // skip old true/false data, only add numbers
+        if (value is int) {
+          total = total + value;
+        }
+      }
+      _attendees = total;
       notifyListeners();
     });
-    // ...to here.
 
     FirebaseAuth.instance.userChanges().listen((user) {
       if (user != null) {
@@ -92,14 +95,11 @@ class ApplicationState extends ChangeNotifier {
             .doc(user.uid)
             .snapshots()
             .listen((snapshot) {
-          if (snapshot.data() != null) {
-            if (snapshot.data()!['attending'] as bool) {
-              _attending = Attending.yes;
-            } else {
-              _attending = Attending.no;
-            }
+          final data = snapshot.data();
+          if (data != null && data['attending'] is int) {
+            _attending = data['attending'] as int;
           } else {
-            _attending = Attending.unknown;
+            _attending = 0;
           }
           notifyListeners();
         });

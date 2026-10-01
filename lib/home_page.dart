@@ -11,7 +11,7 @@ import 'app_state.dart';                          // new
 import 'guest_book.dart';                         // new
 import 'src/authentication.dart';                 // new
 import 'src/widgets.dart';
-import 'yes_no_selection.dart';             // new
+import 'attendee_count.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -61,12 +61,12 @@ class HomePage extends StatelessWidget {
                 },
                 // ...to here.
                 if (appState.loggedIn) ...[
-                  // Add from here...
-                  YesNoSelection(
-                    state: appState.attending,
-                    onSelection: (attending) => appState.attending = attending,
+                  AttendeeCount(
+                    count: appState.attending,
+                    onChanged: (newCount) {
+                      appState.attending = newCount;
+                    },
                   ),
-                  // ...to here.
                   const Header('Discussion'),
                   GuestBook(
                     addMessage: (message) =>
